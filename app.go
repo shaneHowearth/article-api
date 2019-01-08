@@ -42,6 +42,8 @@ func (a *App) Run(addr string) {
 
 func (a *App) initialiseRoutes() {
 	a.Router.HandleFunc("/articles/{id:[0-9]+}", a.getArticle).Methods("GET")
+	a.Router.HandleFunc("/articles", a.createArticle).Methods("POST")
+	a.Router.HandleFunc("/articles/", a.createArticle).Methods("POST")
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
@@ -76,4 +78,21 @@ func (a *App) getArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, art)
+}
+
+func (a *App) createArticle(w http.ResponseWriter, r *http.Request) {
+	var art Article
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&art); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	if err := art.createArticle(a.DB); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, art)
 }
