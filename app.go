@@ -44,6 +44,7 @@ func (a *App) initialiseRoutes() {
 	a.Router.HandleFunc("/articles/{id:[0-9]+}", a.getArticle).Methods("GET")
 	a.Router.HandleFunc("/articles", a.createArticle).Methods("POST")
 	a.Router.HandleFunc("/articles/", a.createArticle).Methods("POST")
+	a.Router.HandleFunc("/tag/{tagName:[a-zA-Z0-9]+}/{date:[0-9]{8}}", a.getTags).Methods("GET")
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
@@ -95,4 +96,25 @@ func (a *App) createArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusCreated, art)
+}
+
+func (a *App) getTags(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	_, err := strconv.Atoi(vars["date"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid date")
+		return
+	}
+	t := Tag{ArticleDate: vars["date"], TagName: vars["tagName"]}
+	if err := t.getTagInfo(a.DB); err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			respondWithError(w, http.StatusNotFound, "Tag with date not found")
+		default:
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, t)
 }
